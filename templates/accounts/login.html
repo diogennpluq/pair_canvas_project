@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход - Pair Canvas{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 0 auto;">
+    <h1 style="margin-bottom: 30px; text-align: center; color: #333;">Вход в систему</h1>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+            <div style="background: #ffebee; color: #c62828; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                Неверное имя пользователя или пароль. Попробуйте еще раз.
+            </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Имя пользователя:
+            </label>
+            <input type="text" name="username" class="form-control" required autofocus>
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Пароль:
+            </label>
+            <input type="password" name="password" class="form-control" required>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <label style="display: flex; align-items: center; gap: 8px; color: #666;">
+                <input type="checkbox" name="remember">
+                Запомнить меня
+            </label>
+            
+            <!-- Можно добавить сброс пароля позже -->
+            <!-- <a href="#" style="color: #667eea; text-decoration: none;">Забыли пароль?</a> -->
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button type="submit" class="btn" style="flex: 1;">Войти 🔑</button>
+            <a href="{% url 'register' %}" class="btn btn-secondary" style="flex: 1;">Регистрация</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

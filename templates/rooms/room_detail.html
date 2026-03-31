@@ -1,0 +1,1051 @@
+{% extends 'base.html' %}
+
+{% block title %}Комната {{ room.code }} - Pair Canvas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .room-container {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 30px;
+        height: 80vh;
+    }
+    
+    .canvas-container {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        position: relative;
+    }
+    
+    #drawingCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        background: white;
+        cursor: crosshair;
+        touch-action: none;
+    }
+    
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .message {
+        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        word-break: break-word;
+    }
+    
+    .message.sent {
+        align-self: flex-end;
+        background: #667eea;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    
+    .message.received {
+        align-self: flex-start;
+        background: #f0f0f0;
+        color: #333;
+        border-bottom-left-radius: 4px;
+    }
+    
+    .message.system {
+        align-self: center;
+        background: #ffd700;
+        color: #333;
+        font-style: italic;
+        text-align: center;
+        max-width: 90%;
+    }
+    
+    .chat-input {
+        padding: 20px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .chat-input input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        font-size: 16px;
+    }
+    
+    .chat-input button {
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 20px;
+        cursor: pointer;
+    }
+    
+    .tools-panel {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tool-btn {
+        padding: 12px 20px;
+        border: 2px solid #e0e0e0;
+        background: white;
+        border-radius: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+        font-size: 16px;
+    }
+    
+    .tool-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .tool-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .color-picker {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        padding: 0;
+        overflow: hidden;
+    }
+    
+    .brush-size {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .brush-size-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #333;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .brush-size-btn.small {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .brush-size-btn.large {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .room-info {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .room-info h3 {
+        color: #667eea;
+        margin-bottom: 15px;
+    }
+    
+    .user-list {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    
+    .user-badge {
+        background: #f0f0f0;
+        padding: 10px 15px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .user-badge.creator {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .user-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    /* Адаптивность для мобильных */
+    @media (max-width: 1024px) {
+        .room-container {
+            grid-template-columns: 1fr;
+            height: auto;
+        }
+        
+        .canvas-container {
+            height: 60vh;
+        }
+        
+        .chat-container {
+            height: 40vh;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .tools-panel {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .tool-btn {
+            justify-content: center;
+        }
+        
+        .canvas-container {
+            height: 50vh;
+        }
+        
+        .chat-container {
+            height: 40vh;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .room-info, .tools-panel {
+            padding: 15px;
+        }
+        
+        .tool-btn {
+            padding: 10px 15px;
+            font-size: 14px;
+        }
+        
+        .canvas-container {
+            height: 40vh;
+        }
+        
+        .chat-container {
+            height: 35vh;
+        }
+    }
+    
+    /* Для тач-устройств */
+    @media (hover: none) and (pointer: coarse) {
+        .tool-btn {
+            padding: 15px 20px;
+            font-size: 18px;
+        }
+        
+        .brush-size-btn {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .brush-size-btn.small {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .brush-size-btn.large {
+            width: 50px;
+            height: 50px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="room-info">
+    <h3>🏠 Комната: {{ room.code }}</h3>
+    <p><strong>Режим:</strong> {{ room.get_mode_display }}</p>
+    
+    <div class="user-list">
+        {% for user in users_in_room %}
+            <div class="user-badge {% if user == room.creator %}creator{% endif %}">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="user-avatar">
+                {% else %}
+                    <span>👤</span>
+                {% endif %}
+                <span>{{ user.username }}{% if user == room.creator %} (Создатель){% endif %}</span>
+            </div>
+        {% endfor %}
+        
+        {% if room.participant is None %}
+            <div class="user-badge" style="background: #fff3cd; color: #856404;">
+                <span>⏳</span>
+                <span>Ожидание второго участника...</span>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button onclick="copyRoomCode()" class="btn" style="flex: 1;">
+            📋 Скопировать код комнаты
+        </button>
+        <a href="{% url 'leave_room' room.code %}" class="btn btn-secondary" style="flex: 1;">
+            🚪 Покинуть комнату
+        </a>
+    </div>
+</div>
+
+<div class="room-container">
+    <!-- Холст для рисования -->
+    <div class="canvas-container">
+        <canvas id="drawingCanvas"></canvas>
+    </div>
+    
+    <!-- Чат -->
+    <div class="chat-container">
+        <div class="chat-header">
+            <h3>💬 Чат комнаты</h3>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <!-- Сообщения будут добавляться здесь -->
+            <div class="message system">
+                Добро пожаловать в комнату {{ room.code }}! 🎨
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" id="chatInput" placeholder="Введите сообщение..." maxlength="500">
+            <button onclick="sendMessage()">Отправить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Панель инструментов -->
+<div class="tools-panel">
+    <button class="tool-btn active" onclick="setTool('brush')" id="toolBrush">
+        🖌️ Кисть
+    </button>
+    <button class="tool-btn" onclick="setTool('eraser')" id="toolEraser">
+        🧹 Ластик
+    </button>
+    <button class="tool-btn" onclick="setTool('rectangle')" id="toolRectangle">
+        ⬜ Прямоугольник
+    </button>
+    <button class="tool-btn" onclick="setTool('circle')" id="toolCircle">
+        ⭕ Круг
+    </button>
+    <button class="tool-btn" onclick="setTool('line')" id="toolLine">
+        📏 Линия
+    </button>
+    
+    <input type="color" id="colorPicker" class="color-picker" value="#000000">
+    
+    <div class="brush-size">
+        <button class="brush-size-btn small" onclick="setBrushSize(5)"></button>
+        <button class="brush-size-btn" onclick="setBrushSize(10)"></button>
+        <button class="brush-size-btn large" onclick="setBrushSize(20)"></button>
+    </div>
+    
+    <button class="tool-btn" onclick="undo()" id="undoBtn">
+        ↩️ Отменить
+    </button>
+    <button class="tool-btn" onclick="redo()" id="redoBtn">
+        ↪️ Повторить
+    </button>
+    <button class="tool-btn" onclick="clearCanvas()" style="background: #ff4757; color: white;">
+        🗑️ Очистить
+    </button>
+    <button class="tool-btn" onclick="saveDrawing()" style="background: #2ed573; color: white;">
+        💾 Сохранить
+    </button>
+</div>
+
+<!-- Скрытые данные для JavaScript -->
+<input type="hidden" id="roomCode" value="{{ room.code }}">
+<input type="hidden" id="username" value="{{ user.username }}">
+<input type="hidden" id="websocketUrl" value="{{ websocket_url }}">
+
+<script>
+    // Основные переменные
+    let canvas = document.getElementById('drawingCanvas');
+    let ctx = canvas.getContext('2d');
+    let currentTool = 'brush';
+    let currentColor = '#000000';
+    let brushSize = 10;
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let startX = 0;
+    let startY = 0;
+    let drawingHistory = [];
+    let historyIndex = -1;
+    
+    // WebSocket соединение
+    let socket = null;
+    let roomCode = document.getElementById('roomCode').value;
+    let username = document.getElementById('username').value;
+    let websocketUrl = document.getElementById('websocketUrl').value;
+    
+    // Инициализация холста
+    function initCanvas() {
+        // Устанавливаем размер холста
+        resizeCanvas();
+        
+        // События для рисования мышью
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        // События для тач-устройств (iPhone/Android)
+        canvas.addEventListener('touchstart', handleTouchStart);
+        canvas.addEventListener('touchmove', handleTouchMove);
+        canvas.addEventListener('touchend', handleTouchEnd);
+        
+        // События для инструментов
+        document.getElementById('colorPicker').addEventListener('change', function(e) {
+            currentColor = e.target.value;
+            if (currentTool !== 'eraser') {
+                ctx.strokeStyle = currentColor;
+                ctx.fillStyle = currentColor;
+            }
+        });
+        
+        // Инициализация WebSocket
+        connectWebSocket();
+        
+        // Загружаем историю сообщений
+        loadChatHistory();
+        
+        // Сохраняем начальное состояние холста
+        saveToHistory();
+    }
+    
+    // Изменение размера холста при изменении размера окна
+    function resizeCanvas() {
+        const container = canvas.parentElement;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        
+        // Очищаем и перерисовываем историю
+        redrawFromHistory();
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Функции рисования
+    function startDrawing(e) {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+        startX = lastX;
+        startY = lastY;
+        
+        if (currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'line') {
+            // Для фигур начинаем с новой точки
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+        }
+    }
+    
+    function draw(e) {
+        if (!isDrawing) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        switch(currentTool) {
+            case 'brush':
+                drawBrush(x, y);
+                break;
+            case 'eraser':
+                erase(x, y);
+                break;
+            case 'rectangle':
+                drawRectangle(x, y);
+                break;
+            case 'circle':
+                drawCircle(x, y);
+                break;
+            case 'line':
+                drawLine(x, y);
+                break;
+        }
+        
+        // Отправляем данные через WebSocket
+        sendDrawingData(x, y);
+        
+        lastX = x;
+        lastY = y;
+    }
+    
+    function stopDrawing() {
+        if (!isDrawing) return;
+        
+        isDrawing = false;
+        ctx.closePath();
+        
+        // Сохраняем в историю после завершения рисования
+        if (currentTool !== 'brush' && currentTool !== 'eraser') {
+            saveToHistory();
+        }
+    }
+    
+    // Функции для конкретных инструментов
+    function drawBrush(x, y) {
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = currentColor;
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        
+        // Сохраняем каждые 10 точек для плавности
+        if (Math.abs(x - lastX) > 10 || Math.abs(y - lastY) > 10) {
+            saveToHistory();
+        }
+    }
+    
+    function erase(x, y) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        drawBrush(x, y);
+        ctx.restore();
+    }
+    
+    function drawRectangle(x, y) {
+        // Временно рисуем прямоугольник
+        const width = x - startX;
+        const height = y - startY;
+        
+        // Очищаем и перерисовываем историю
+        redrawFromHistory();
+        
+        ctx.lineWidth = brushSize;
+        ctx.strokeStyle = currentColor;
+        ctx.strokeRect(startX, startY, width, height);
+    }
+    
+    function drawCircle(x, y) {
+        const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+        
+        // Очищаем и перерисовываем историю
+        redrawFromHistory();
+        
+        ctx.lineWidth = brushSize;
+        ctx.strokeStyle = currentColor;
+        ctx.beginPath();
+        ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
+    function drawLine(x, y) {
+        // Очищаем и перерисовываем историю
+        redrawFromHistory();
+        
+        ctx.lineWidth = brushSize;
+        ctx.strokeStyle = currentColor;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    }
+    
+    // Обработчики для тач-устройств
+    function handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousedown', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        canvas.dispatchEvent(mouseEvent);
+    }
+    
+    function handleTouchMove(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousemove', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        canvas.dispatchEvent(mouseEvent);
+    }
+    
+    function handleTouchEnd(e) {
+        e.preventDefault();
+        const mouseEvent = new MouseEvent('mouseup', {});
+        canvas.dispatchEvent(mouseEvent);
+    }
+    
+    // Управление инструментами
+    function setTool(tool) {
+        currentTool = tool;
+        
+        // Обновляем активные кнопки
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1))
+            ?.classList.add('active');
+        
+        // Для ластика используем белый цвет
+        if (tool === 'eraser') {
+            ctx.strokeStyle = '#ffffff';
+            ctx.fillStyle = '#ffffff';
+        } else {
+            ctx.strokeStyle = currentColor;
+            ctx.fillStyle = currentColor;
+        }
+    }
+    
+    function setBrushSize(size) {
+        brushSize = size;
+        document.querySelectorAll('.brush-size-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+    
+    // История действий
+    function saveToHistory() {
+        // Удаляем будущую историю если мы отменили и начали новое действие
+        drawingHistory = drawingHistory.slice(0, historyIndex + 1);
+        
+        // Сохраняем текущее состояние холста
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        drawingHistory.push(imageData);
+        historyIndex++;
+        
+        // Обновляем состояние кнопок
+        updateUndoRedoButtons();
+    }
+    
+    function undo() {
+        if (historyIndex > 0) {
+            historyIndex--;
+            const imageData = drawingHistory[historyIndex];
+            ctx.putImageData(imageData, 0, 0);
+            updateUndoRedoButtons();
+            
+            // Отправляем команду отмены
+            sendClearCanvas();
+        }
+    }
+    
+    function redo() {
+        if (historyIndex < drawingHistory.length - 1) {
+            historyIndex++;
+            const imageData = drawingHistory[historyIndex];
+            ctx.putImageData(imageData, 0, 0);
+            updateUndoRedoButtons();
+        }
+    }
+    
+    function updateUndoRedoButtons() {
+        document.getElementById('undoBtn').disabled = historyIndex <= 0;
+        document.getElementById('redoBtn').disabled = historyIndex >= drawingHistory.length - 1;
+    }
+    
+    function redrawFromHistory() {
+        if (historyIndex >= 0) {
+            const imageData = drawingHistory[historyIndex];
+            ctx.putImageData(imageData, 0, 0);
+        } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+    
+    function clearCanvas() {
+        if (confirm('Очистить весь холст?')) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawingHistory = [];
+            historyIndex = -1;
+            saveToHistory();
+            updateUndoRedoButtons();
+            
+            // Отправляем команду очистки через WebSocket
+            sendClearCanvas();
+        }
+    }
+    
+    // WebSocket функции
+    function connectWebSocket() {
+        socket = new WebSocket(websocketUrl);
+        
+        socket.onopen = function(e) {
+            console.log('WebSocket соединение установлено');
+            addSystemMessage('✅ Соединение установлено');
+        };
+        
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            handleWebSocketMessage(data);
+        };
+        
+        socket.onclose = function(e) {
+            console.log('WebSocket соединение закрыто');
+            addSystemMessage('❌ Соединение потеряно. Переподключение...');
+            
+            // Пытаемся переподключиться через 5 секунд
+            setTimeout(connectWebSocket, 5000);
+        };
+        
+        socket.onerror = function(e) {
+            console.error('WebSocket ошибка:', e);
+            addSystemMessage('⚠️ Ошибка соединения');
+        };
+    }
+    
+    function handleWebSocketMessage(data) {
+        switch(data.type) {
+            case 'chat_message':
+                addChatMessage(data.user, data.message, data.timestamp);
+                break;
+                
+            case 'drawing':
+                if (data.user !== username) {
+                    handleRemoteDrawing(data);
+                }
+                break;
+                
+            case 'clear_canvas':
+                if (data.user !== username) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    drawingHistory = [];
+                    historyIndex = -1;
+                    saveToHistory();
+                    addSystemMessage(`${data.user} очистил холст`);
+                }
+                break;
+                
+            case 'system_message':
+                addSystemMessage(data.message);
+                break;
+        }
+    }
+    
+    function sendDrawingData(x, y) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            const data = {
+                type: 'drawing',
+                data: {
+                    tool: currentTool,
+                    color: currentColor,
+                    size: brushSize,
+                    x: x,
+                    y: y,
+                    lastX: lastX,
+                    lastY: lastY,
+                    startX: startX,
+                    startY: startY
+                },
+                action: isDrawing ? 'drawing' : 'end'
+            };
+            
+            socket.send(JSON.stringify(data));
+        }
+    }
+    
+    function sendClearCanvas() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'clear_canvas'
+            }));
+        }
+    }
+    
+    function handleRemoteDrawing(data) {
+        const d = data.data;
+        
+        switch(d.tool) {
+            case 'brush':
+                ctx.lineWidth = d.size;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = d.color;
+                ctx.beginPath();
+                ctx.moveTo(d.lastX, d.lastY);
+                ctx.lineTo(d.x, d.y);
+                ctx.stroke();
+                break;
+                
+            case 'eraser':
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = d.size;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(d.lastX, d.lastY);
+                ctx.lineTo(d.x, d.y);
+                ctx.stroke();
+                ctx.restore();
+                break;
+                
+            case 'rectangle':
+                const width = d.x - d.startX;
+                const height = d.y - d.startY;
+                ctx.lineWidth = d.size;
+                ctx.strokeStyle = d.color;
+                ctx.strokeRect(d.startX, d.startY, width, height);
+                break;
+                
+            case 'circle':
+                const radius = Math.sqrt(Math.pow(d.x - d.startX, 2) + Math.pow(d.y - d.startY, 2));
+                ctx.lineWidth = d.size;
+                ctx.strokeStyle = d.color;
+                ctx.beginPath();
+                ctx.arc(d.startX, d.startY, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'line':
+                ctx.lineWidth = d.size;
+                ctx.strokeStyle = d.color;
+                ctx.beginPath();
+                ctx.moveTo(d.startX, d.startY);
+                ctx.lineTo(d.x, d.y);
+                ctx.stroke();
+                break;
+        }
+        
+        if (data.action === 'end') {
+            saveToHistory();
+        }
+    }
+    
+    // Чат функции
+    function loadChatHistory() {
+        fetch(`/api/get_messages/${roomCode}/`)
+            .then(response => response.json())
+            .then(data => {
+                data.messages.forEach(msg => {
+                    addChatMessage(msg.user, msg.message, msg.timestamp);
+                });
+            })
+            .catch(error => console.error('Ошибка загрузки истории чата:', error));
+    }
+    
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        
+        if (message && socket && socket.readyState === WebSocket.OPEN) {
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            socket.send(JSON.stringify({
+                type: 'chat_message',
+                message: message,
+                timestamp: timestamp
+            }));
+            
+            addChatMessage(username, message, timestamp);
+            input.value = '';
+            input.focus();
+        }
+    }
+    
+    function addChatMessage(user, message, timestamp) {
+        const messagesDiv = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        
+        messageDiv.className = `message ${user === username ? 'sent' : 'received'}`;
+        messageDiv.innerHTML = `
+            <strong>${user}</strong> <small>${timestamp}</small><br>
+            ${message}
+        `;
+        
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    function addSystemMessage(message) {
+        const messagesDiv = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        
+        messageDiv.className = 'message system';
+        messageDiv.textContent = message;
+        
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    // Отправка сообщения при нажатии Enter
+    document.getElementById('chatInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+    
+    // Вспомогательные функции
+    function copyRoomCode() {
+    const textToCopy = roomCode;
+    
+    // Новый метод для iOS
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        // Современные браузеры
+        navigator.clipboard.writeText(textToCopy)
+            .then(() => {
+                showNotification('✅ Код скопирован: ' + roomCode);
+            })
+            .catch(err => {
+                // Fallback для iOS
+                copyFallback(textToCopy);
+            });
+    } else {
+        // Fallback для старых браузеров и iOS
+        copyFallback(textToCopy);
+    }
+}
+
+function copyFallback(text) {
+    // Создаем временный input элемент
+    const tempInput = document.createElement('input');
+    tempInput.style.position = 'absolute';
+    tempInput.style.left = '-9999px';
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    
+    // Выделяем текст
+    tempInput.select();
+    tempInput.setSelectionRange(0, 99999); // Для мобильных
+    
+    try {
+        // Пробуем скопировать
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showNotification('✅ Код скопирован: ' + roomCode);
+        } else {
+            showNotification('📋 Код комнаты: ' + roomCode + '\n(Скопируй вручную)');
+        }
+    } catch (err) {
+        // Показываем код для ручного копирования
+        showNotification('📋 Код комнаты: ' + roomCode + '\n(Скопируй вручную)');
+    }
+    
+    // Удаляем временный элемент
+    document.body.removeChild(tempInput);
+}
+
+function showNotification(message) {
+    // Создаем красивую нотификацию вместо alert
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+        max-width: 300px;
+        word-break: break-all;
+    `;
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">📋</span>
+            <div>${message}</div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Автоудаление через 3 секунды
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+    
+    // Добавляем стили для анимации
+    if (!document.getElementById('notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+    
+    function saveDrawing() {
+        const imageData = canvas.toDataURL('image/png');
+        
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'save_drawing',
+                image_data: imageData
+            }));
+        }
+        
+        // Создаем временную ссылку для скачивания
+        const link = document.createElement('a');
+        link.download = `pair_canvas_${roomCode}_${new Date().getTime()}.png`;
+        link.href = imageData;
+        link.click();
+        
+        addSystemMessage('✅ Рисунок сохранен!');
+    }
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', initCanvas);
+</script>
+{% endblock %}

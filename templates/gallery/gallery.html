@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block title %}Галерея - Pair Canvas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gallery-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    
+    .gallery-item {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+    }
+    
+    .gallery-item:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+    }
+    
+    .gallery-image {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        background: #f0f0f0;
+    }
+    
+    .gallery-info {
+        padding: 20px;
+    }
+    
+    .gallery-author {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .author-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .gallery-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .empty-gallery {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    }
+    
+    .empty-gallery h3 {
+        color: #667eea;
+        margin-bottom: 20px;
+    }
+    
+    .empty-gallery p {
+        color: #666;
+        margin-bottom: 30px;
+    }
+    
+    .section-title {
+        margin-bottom: 25px;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    @media (max-width: 768px) {
+        .gallery-container {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .gallery-image {
+            height: 200px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .gallery-container {
+            grid-template-columns: 1fr;
+        }
+        
+        .gallery-item {
+            margin-bottom: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 40px;">
+    <h1 class="section-title">🖼️ Галерея рисунков</h1>
+    <p style="color: #666; margin-bottom: 30px;">
+        Здесь собраны лучшие рисунки, созданные в Pair Canvas. Вдохновляйтесь и создавайте свое!
+    </p>
+</div>
+
+<!-- Мои рисунки -->
+{% if user_drawings %}
+    <h2 class="section-title">🎨 Мои рисунки</h2>
+    <div class="gallery-container">
+        {% for drawing in user_drawings %}
+            <div class="gallery-item" onclick="viewDrawing('{{ drawing.image_data }}')">
+                <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 60px; margin-bottom: 10px;">🎨</div>
+                        <div style="color: #666;">Нажмите для просмотра</div>
+                    </div>
+                </div>
+                <div class="gallery-info">
+                    <div class="gallery-author">
+                        {% if drawing.created_by.avatar %}
+                            <img src="{{ drawing.created_by.avatar.url }}" alt="{{ drawing.created_by.username }}" class="author-avatar">
+                        {% else %}
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white; 
+                                        display: flex; align-items: center; justify-content: center;">
+                                👤
+                            </div>
+                        {% endif %}
+                        <div>
+                            <strong>{{ drawing.created_by.username }}</strong>
+                            <div style="font-size: 12px; color: #666;">{{ drawing.created_at|date:"d.m.Y H:i" }}</div>
+                        </div>
+                    </div>
+                    <p style="color: #666; margin-top: 10px;">
+                        Комната: <strong>{{ drawing.room.code }}</strong>
+                    </p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-gallery">
+        <h3>🎨 У вас пока нет рисунков</h3>
+        <p>Создайте комнату и начните рисовать вместе с друзьями!</p>
+        <a href="{% url 'create_room' %}" class="btn">Создать комнату 🚀</a>
+    </div>
+{% endif %}
+
+<!-- Последние рисунки -->
+{% if recent_drawings %}
+    <h2 class="section-title" style="margin-top: 50px;">🔥 Последние рисунки</h2>
+    <div class="gallery-container">
+        {% for drawing in recent_drawings %}
+            {% if drawing.created_by != user %}
+                <div class="gallery-item" onclick="viewDrawing('{{ drawing.image_data }}')">
+                    <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 60px; margin-bottom: 10px;">🎨</div>
+                            <div style="color: #666;">Нажмите для просмотра</div>
+                        </div>
+                    </div>
+                    <div class="gallery-info">
+                        <div class="gallery-author">
+                            {% if drawing.created_by.avatar %}
+                                <img src="{{ drawing.created_by.avatar.url }}" alt="{{ drawing.created_by.username }}" class="author-avatar">
+                            {% else %}
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white; 
+                                            display: flex; align-items: center; justify-content: center;">
+                                    👤
+                                </div>
+                            {% endif %}
+                            <div>
+                                <strong>{{ drawing.created_by.username }}</strong>
+                                <div style="font-size: 12px; color: #666;">{{ drawing.created_at|date:"d.m.Y H:i" }}</div>
+                            </div>
+                        </div>
+                        <p style="color: #666; margin-top: 10px;">
+                            Комната: <strong>{{ drawing.room.code }}</strong>
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Модальное окно для просмотра рисунка -->
+<div id="drawingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                               background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; 
+                               justify-content: center; padding: 20px;">
+    <div style="background: white; border-radius: 20px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
+        <button onclick="closeModal()" style="position: absolute; top: 15px; right: 15px; background: #ff4757; 
+                                              color: white; border: none; width: 40px; height: 40px; 
+                                              border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 1001;">
+            ×
+        </button>
+        <img id="modalImage" src="" alt="Рисунок" style="width: 100%; height: auto; display: block;">
+    </div>
+</div>
+
+<script>
+    function viewDrawing(imageData) {
+        const modal = document.getElementById('drawingModal');
+        const modalImage = document.getElementById('modalImage');
+        
+        modalImage.src = imageData;
+        modal.style.display = 'flex';
+        
+        // Предотвращаем прокрутку тела при открытом модальном окне
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeModal() {
+        const modal = document.getElementById('drawingModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    
+    // Закрытие модального окна при клике вне изображения
+    document.getElementById('drawingModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+    
+    // Закрытие модального окна при нажатии Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+</script>
+{% endblock %}

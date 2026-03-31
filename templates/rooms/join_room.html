@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Присоединиться к комнате - Pair Canvas{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 0 auto;">
+    <h1 style="margin-bottom: 30px; text-align: center; color: #333;">Присоединиться к комнате</h1>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Введите код комнаты:
+            </label>
+            <input 
+                type="text" 
+                name="room_code" 
+                class="form-control" 
+                placeholder="Например: ABC123" 
+                required
+                style="text-transform: uppercase; font-size: 18px; text-align: center; letter-spacing: 2px;"
+                maxlength="8"
+            >
+            <small style="display: block; margin-top: 8px; color: #666;">
+                Код состоит из 6 заглавных букв и цифр
+            </small>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+            <h3 style="color: #667eea; margin-bottom: 10px;">💡 Как получить код?</h3>
+            <p style="color: #666;">
+                Попросите у друга, создавшего комнату, код комнаты.
+                Он выглядит примерно так: <strong>ABC123</strong>
+            </p>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button type="submit" class="btn" style="flex: 1;">Присоединиться 👥</button>
+            <a href="{% url 'home' %}" class="btn btn-secondary" style="flex: 1;">Назад</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

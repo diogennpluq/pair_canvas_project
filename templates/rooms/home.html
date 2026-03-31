@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Pair Canvas{% endblock %}
+
+{% block content %}
+<div class="grid">
+    <div class="card" style="text-align: center; margin-bottom: 30px;">
+        <h1 style="font-size: 48px; margin-bottom: 10px;">🎨</h1>
+        <h1 style="margin-bottom: 20px; color: #333;">Добро пожаловать в Pair Canvas!</h1>
+        <p style="color: #666; font-size: 18px; margin-bottom: 30px;">
+            Совместное рисование в реальном времени. Создавай комнату и рисуй вместе с друзьями!
+        </p>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+        <!-- Карточка создания комнаты -->
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #667eea;">🚀 Создать комнату</h2>
+            <p style="margin-bottom: 25px; color: #666;">
+                Создай уникальную комнату для совместного рисования. Выбери режим и пригласи друга по коду.
+            </p>
+            <a href="{% url 'create_room' %}" class="btn" style="display: block;">Создать комнату</a>
+        </div>
+        
+        <!-- Карточка присоединения -->
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #667eea;">👥 Присоединиться</h2>
+            <p style="margin-bottom: 25px; color: #666;">
+                Присоединяйся к существующей комнате по коду. Рисуй вместе с создателем комнаты в реальном времени.
+            </p>
+            <a href="{% url 'join_room' %}" class="btn" style="display: block;">Присоединиться</a>
+        </div>
+        
+        <!-- Карточка галереи -->
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #667eea;">🖼️ Галерея</h2>
+            <p style="margin-bottom: 25px; color: #666;">
+                Посмотри свои сохраненные рисунки и работы других пользователей. Вдохновляйся и создавай новое!
+            </p>
+            <a href="{% url 'gallery' %}" class="btn" style="display: block;">Открыть галерею</a>
+        </div>
+    </div>
+    
+    <!-- Инструкция -->
+    <div class="card" style="margin-top: 30px;">
+        <h2 style="margin-bottom: 20px; color: #333;">📋 Как это работает?</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 10px;">1. Создай комнату</h3>
+                <p style="color: #666;">Зарегистрируйся и создай комнату с уникальным кодом.</p>
+            </div>
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 10px;">2. Пригласи друга</h3>
+                <p style="color: #666;">Отправь код комнаты другу или присоединись сам.</p>
+            </div>
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 10px;">3. Рисуйте вместе</h3>
+                <p style="color: #666;">Используйте инструменты рисования и общайтесь в чате.</p>
+            </div>
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 10px;">4. Сохраняйте работы</h3>
+                <p style="color: #666;">Сохраняйте лучшие рисунки в галерею.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .grid {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .grid {
+            gap: 15px;
+        }
+        
+        .card h2 {
+            font-size: 20px;
+        }
+    }
+</style>
+{% endblock %}

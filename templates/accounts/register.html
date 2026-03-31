@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация - Pair Canvas{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 0 auto;">
+    <h1 style="margin-bottom: 30px; text-align: center; color: #333;">Регистрация</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Имя пользователя:
+            </label>
+            {{ form.username }}
+            {% if form.username.errors %}
+                <div style="color: #f44336; margin-top: 5px; font-size: 14px;">
+                    {{ form.username.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Email:
+            </label>
+            {{ form.email }}
+            {% if form.email.errors %}
+                <div style="color: #f44336; margin-top: 5px; font-size: 14px;">
+                    {{ form.email.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Пароль:
+            </label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}
+                <div style="color: #f44336; margin-top: 5px; font-size: 14px;">
+                    {{ form.password1.errors }}
+                </div>
+            {% endif %}
+            <small style="display: block; margin-top: 8px; color: #666;">
+                Пароль должен содержать не менее 8 символов
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Подтверждение пароля:
+            </label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}
+                <div style="color: #f44336; margin-top: 5px; font-size: 14px;">
+                    {{ form.password2.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                О себе (необязательно):
+            </label>
+            {{ form.bio }}
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+            <h3 style="color: #667eea; margin-bottom: 10px;">📝 Что дает регистрация?</h3>
+            <ul style="color: #666; padding-left: 20px;">
+                <li>Создание комнат для совместного рисования</li>
+                <li>Сохранение рисунков в галерею</li>
+                <li>Статистика и достижения</li>
+                <li>Общение с другими художниками</li>
+            </ul>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button type="submit" class="btn" style="flex: 1;">Зарегистрироваться 🚀</button>
+            <a href="{% url 'login' %}" class="btn btn-secondary" style="flex: 1;">Уже есть аккаунт?</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    input, textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+        margin-bottom: 5px;
+    }
+    
+    input:focus, textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    @media (max-width: 480px) {
+        .card {
+            padding: 20px;
+        }
+        
+        input, textarea {
+            font-size: 18px;
+            padding: 15px;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <h1 style="margin-bottom: 30px; text-align: center; color: #333;">👤 Ваш профиль</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px; margin-bottom: 30px;">
+            <div>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="{{ user.username }}" 
+                             style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 5px solid #667eea;">
+                    {% else %}
+                        <div style="width: 150px; height: 150px; border-radius: 50%; background: #667eea; color: white; 
+                                    display: flex; align-items: center; justify-content: center; font-size: 60px; margin: 0 auto;">
+                            👤
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        Аватар:
+                    </label>
+                    {{ form.avatar }}
+                </div>
+            </div>
+            
+            <div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        Имя пользователя:
+                    </label>
+                    <input type="text" value="{{ user.username }}" class="form-control" disabled>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Имя пользователя нельзя изменить
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        Email:
+                    </label>
+                    {{ form.email }}
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        О себе:
+                    </label>
+                    {{ form.bio }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Статистика пользователя -->
+        <div style="background: #f8f9fa; padding: 25px; border-radius: 15px; margin-bottom: 30px;">
+            <h3 style="color: #667eea; margin-bottom: 20px; text-align: center;">📊 Ваша статистика</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 12px;">
+                    <div style="font-size: 36px; margin-bottom: 10px;">🎨</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #667eea;">{{ user.drawings_count }}</div>
+                    <div style="color: #666;">Рисунков создано</div>
+                </div>
+                
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 12px;">
+                    <div style="font-size: 36px; margin-bottom: 10px;">⭐</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #667eea;">{{ user.score }}</div>
+                    <div style="color: #666;">Общий счет</div>
+                </div>
+                
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 12px;">
+                    <div style="font-size: 36px; margin-bottom: 10px;">👥</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #667eea;">{{ user.created_rooms.count }}</div>
+                    <div style="color: #666;">Комнат создано</div>
+                </div>
+                
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 12px;">
+                    <div style="font-size: 36px; margin-bottom: 10px;">📅</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #667eea;">
+                        {{ user.date_joined|date:"d.m.Y" }}
+                    </div>
+                    <div style="color: #666;">Дата регистрации</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button type="submit" class="btn" style="flex: 2;">Сохранить изменения 💾</button>
+            <a href="{% url 'home' %}" class="btn btn-secondary" style="flex: 1;">На главную</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
