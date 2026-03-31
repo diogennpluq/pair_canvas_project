@@ -303,6 +303,21 @@
     <h3>🏠 Комната: {{ room.code }}</h3>
     <p><strong>Режим:</strong> {{ room.get_mode_display }}</p>
     
+    {% if room.mode == 'turn' %}
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+            <p style="margin: 0; color: #1976d2;">
+                <strong>🔄 Ход {{ room.turn_count }}/{{ room.max_turns }}</strong>
+            </p>
+            <p style="margin: 5px 0 0 0; font-size: 14px;">
+                {% if is_current_drawer %}
+                    <span style="color: #2e7d32;">✅ Ваш ход! Рисуйте</span>
+                {% else %}
+                    <span style="color: #f57c00;">⏳ Ход соперника...</span>
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+
     <div class="user-list">
         {% for user in users_in_room %}
             <div class="user-badge {% if user == room.creator %}creator{% endif %}">
@@ -314,7 +329,7 @@
                 <span>{{ user.username }}{% if user == room.creator %} (Создатель){% endif %}</span>
             </div>
         {% endfor %}
-        
+
         {% if room.participant is None %}
             <div class="user-badge" style="background: #fff3cd; color: #856404;">
                 <span>⏳</span>
@@ -322,14 +337,17 @@
             </div>
         {% endif %}
     </div>
-    
+
     <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button onclick="copyRoomCode()" class="btn" style="flex: 1;">
             📋 Скопировать код комнаты
         </button>
-        <a href="{% url 'leave_room' room.code %}" class="btn btn-secondary" style="flex: 1;">
-            🚪 Покинуть комнату
-        </a>
+        <form method="post" action="{% url 'leave_room' room.code %}" style="flex: 1;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                🚪 Покинуть комнату
+            </button>
+        </form>
     </div>
 </div>
 
@@ -389,7 +407,7 @@
         ↩️ Отменить
     </button>
     <button class="tool-btn" onclick="redo()" id="redoBtn">
-        ↪️ Повторить
+        ↪️ Вернуть
     </button>
     <button class="tool-btn" onclick="clearCanvas()" style="background: #ff4757; color: white;">
         🗑️ Очистить
@@ -397,6 +415,11 @@
     <button class="tool-btn" onclick="saveDrawing()" style="background: #2ed573; color: white;">
         💾 Сохранить
     </button>
+    {% if room.mode == 'turn' %}
+    <button class="tool-btn" onclick="nextTurn()" style="background: #667eea; color: white;" id="nextTurnBtn">
+        ✅ Завершить ход
+    </button>
+    {% endif %}
 </div>
 
 <!-- Скрытые данные для JavaScript -->
@@ -418,29 +441,38 @@
     let startY = 0;
     let drawingHistory = [];
     let historyIndex = -1;
-    
+    let sequenceId = 0; // Счётчик сообщений для синхронизации
+    let remoteSequenceId = 0; // Последнее полученное сообщение от другого пользователя
+    let isRemoteDrawing = false; // Флаг: рисует ли сейчас удалённый пользователь
+
+    // Переменные для режима "По очереди"
+    let isCurrentDrawer = {{ is_current_drawer|lower }};
+    let turnCount = {{ room.turn_count }};
+    let maxTurns = {{ room.max_turns }};
+
     // WebSocket соединение
     let socket = null;
     let roomCode = document.getElementById('roomCode').value;
     let username = document.getElementById('username').value;
     let websocketUrl = document.getElementById('websocketUrl').value;
-    
+    let isManualClose = false; // Флаг для нормального закрытия
+
     // Инициализация холста
     function initCanvas() {
         // Устанавливаем размер холста
         resizeCanvas();
-        
+
         // События для рисования мышью
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
-        
+
         // События для тач-устройств (iPhone/Android)
         canvas.addEventListener('touchstart', handleTouchStart);
         canvas.addEventListener('touchmove', handleTouchMove);
         canvas.addEventListener('touchend', handleTouchEnd);
-        
+
         // События для инструментов
         document.getElementById('colorPicker').addEventListener('change', function(e) {
             currentColor = e.target.value;
@@ -448,18 +480,20 @@
                 ctx.strokeStyle = currentColor;
                 ctx.fillStyle = currentColor;
             }
+            // Отправляем информацию об изменении цвета
+            sendToolChange();
         });
-        
+
         // Инициализация WebSocket
         connectWebSocket();
-        
+
         // Загружаем историю сообщений
         loadChatHistory();
-        
+
         // Сохраняем начальное состояние холста
         saveToHistory();
     }
-    
+
     // Изменение размера холста при изменении размера окна
     function resizeCanvas() {
         const container = canvas.parentElement;
@@ -474,27 +508,44 @@
     
     // Функции рисования
     function startDrawing(e) {
+        // Проверка для режима "По очереди" - можно рисовать только в свой ход
+        if (gameMode === 'turn' && !isCurrentDrawer) {
+            addSystemMessage('⏳ Сейчас не ваш ход!');
+            return;
+        }
+
         isDrawing = true;
         const rect = canvas.getBoundingClientRect();
         lastX = e.clientX - rect.left;
         lastY = e.clientY - rect.top;
         startX = lastX;
         startY = lastY;
-        
+
         if (currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'line') {
             // Для фигур начинаем с новой точки
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
         }
+
+        // Отправляем событие начала рисования только для кисти и ластика
+        if ((currentTool === 'brush' || currentTool === 'eraser') &&
+            socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'drawing_start',
+                tool: currentTool,
+                color: currentColor,
+                size: brushSize
+            }));
+        }
     }
-    
+
     function draw(e) {
         if (!isDrawing) return;
-        
+
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         switch(currentTool) {
             case 'brush':
                 drawBrush(x, y);
@@ -512,23 +563,69 @@
                 drawLine(x, y);
                 break;
         }
-        
-        // Отправляем данные через WebSocket
-        sendDrawingData(x, y);
-        
+
+        // Отправляем данные через WebSocket только для кисти и ластика
+        if (currentTool === 'brush' || currentTool === 'eraser') {
+            sendDrawingData(x, y);
+        }
+
         lastX = x;
         lastY = y;
     }
     
     function stopDrawing() {
         if (!isDrawing) return;
-        
+
         isDrawing = false;
         ctx.closePath();
-        
+
         // Сохраняем в историю после завершения рисования
-        if (currentTool !== 'brush' && currentTool !== 'eraser') {
+        // Для фигур сначала рисуем финальную версию
+        if (currentTool === 'rectangle') {
+            const width = lastX - startX;
+            const height = lastY - startY;
+            redrawFromHistory();
+            ctx.lineWidth = brushSize;
+            ctx.strokeStyle = currentColor;
+            ctx.strokeRect(startX, startY, width, height);
             saveToHistory();
+            
+            // Отправляем данные фигуры
+            sendShapeData('rectangle');
+        } else if (currentTool === 'circle') {
+            const radius = Math.sqrt(Math.pow(lastX - startX, 2) + Math.pow(lastY - startY, 2));
+            redrawFromHistory();
+            ctx.lineWidth = brushSize;
+            ctx.strokeStyle = currentColor;
+            ctx.beginPath();
+            ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            saveToHistory();
+            
+            // Отправляем данные фигуры
+            sendShapeData('circle');
+        } else if (currentTool === 'line') {
+            redrawFromHistory();
+            ctx.lineWidth = brushSize;
+            ctx.strokeStyle = currentColor;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(lastX, lastY);
+            ctx.stroke();
+            saveToHistory();
+            
+            // Отправляем данные фигуры
+            sendShapeData('line');
+        } else if (currentTool !== 'brush' && currentTool !== 'eraser') {
+            saveToHistory();
+        }
+        
+        // Отправляем событие окончания рисования (для всех инструментов)
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'drawing_end',
+                tool: currentTool
+            }));
         }
     }
     
@@ -558,35 +655,35 @@
     }
     
     function drawRectangle(x, y) {
-        // Временно рисуем прямоугольник
+        // Временно рисуем прямоугольник (превью)
         const width = x - startX;
         const height = y - startY;
-        
+
         // Очищаем и перерисовываем историю
         redrawFromHistory();
-        
+
         ctx.lineWidth = brushSize;
         ctx.strokeStyle = currentColor;
         ctx.strokeRect(startX, startY, width, height);
     }
-    
+
     function drawCircle(x, y) {
         const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
-        
-        // Очищаем и перерисовываем историю
+
+        // Очищаем и перерисовываем историю (превью)
         redrawFromHistory();
-        
+
         ctx.lineWidth = brushSize;
         ctx.strokeStyle = currentColor;
         ctx.beginPath();
         ctx.arc(startX, startY, radius, 0, Math.PI * 2);
         ctx.stroke();
     }
-    
+
     function drawLine(x, y) {
-        // Очищаем и перерисовываем историю
+        // Очищаем и перерисовываем историю (превью)
         redrawFromHistory();
-        
+
         ctx.lineWidth = brushSize;
         ctx.strokeStyle = currentColor;
         ctx.beginPath();
@@ -625,15 +722,15 @@
     // Управление инструментами
     function setTool(tool) {
         currentTool = tool;
-        
+
         // Обновляем активные кнопки
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.classList.remove('active');
         });
-        
+
         document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1))
             ?.classList.add('active');
-        
+
         // Для ластика используем белый цвет
         if (tool === 'eraser') {
             ctx.strokeStyle = '#ffffff';
@@ -642,14 +739,20 @@
             ctx.strokeStyle = currentColor;
             ctx.fillStyle = currentColor;
         }
+        
+        // Отправляем информацию об изменении инструмента другим пользователям
+        sendToolChange();
     }
-    
+
     function setBrushSize(size) {
         brushSize = size;
         document.querySelectorAll('.brush-size-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         event.target.classList.add('active');
+        
+        // Отправляем информацию об изменении размера кисти
+        sendToolChange();
     }
     
     // История действий
@@ -718,8 +821,19 @@
     function connectWebSocket() {
         socket = new WebSocket(websocketUrl);
         
+        // Отправляем ping каждые 30 секунд для поддержания соединения
+        let pingInterval = setInterval(() => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 30000);
+        
+        // Сохраняем interval для очистки при закрытии
+        socket.pingInterval = pingInterval;
+        
         socket.onopen = function(e) {
             console.log('WebSocket соединение установлено');
+            isManualClose = false; // Сбрасываем флаг при успешном подключении
             addSystemMessage('✅ Соединение установлено');
         };
         
@@ -729,11 +843,25 @@
         };
         
         socket.onclose = function(e) {
-            console.log('WebSocket соединение закрыто');
-            addSystemMessage('❌ Соединение потеряно. Переподключение...');
+            // Очищаем ping interval
+            if (socket.pingInterval) {
+                clearInterval(socket.pingInterval);
+            }
             
+            // Код 1000 — нормальное закрытие, 1001 — уход со страницы
+            if (e.code === 1000 || e.code === 1001 || isManualClose) {
+                console.log('WebSocket соединение закрыто нормально');
+                return; // Не переподключаемся
+            }
+            
+            console.log('WebSocket соединение потеряно, код:', e.code);
+            addSystemMessage('❌ Соединение потеряно. Переподключение...');
+
             // Пытаемся переподключиться через 5 секунд
-            setTimeout(connectWebSocket, 5000);
+            setTimeout(() => {
+                isManualClose = false; // Сбрасываем флаг для переподключения
+                connectWebSocket();
+            }, 5000);
         };
         
         socket.onerror = function(e) {
@@ -744,16 +872,46 @@
     
     function handleWebSocketMessage(data) {
         switch(data.type) {
+            case 'pong':
+                // Игнорируем pong - это ответ на ping для поддержания соединения
+                break;
+
             case 'chat_message':
                 addChatMessage(data.user, data.message, data.timestamp);
                 break;
-                
+
             case 'drawing':
                 if (data.user !== username) {
+                    // Проверяем sequence ID для предотвращения дубликатов
+                    if (data.seq && data.seq <= remoteSequenceId) {
+                        return; // Уже обработали это сообщение
+                    }
+                    remoteSequenceId = data.seq || remoteSequenceId;
                     handleRemoteDrawing(data);
                 }
                 break;
-                
+
+            case 'tool_change':
+                // Синхронизация инструментов (если нужно отображение)
+                if (data.user !== username) {
+                    console.log(`Пользователь ${data.user} сменил инструмент: ${data.tool}`);
+                }
+                break;
+
+            case 'drawing_start':
+                // Удалённый пользователь начал рисовать
+                if (data.user !== username) {
+                    isRemoteDrawing = true;
+                }
+                break;
+
+            case 'drawing_end':
+                // Удалённый пользователь закончил рисовать
+                if (data.user !== username) {
+                    isRemoteDrawing = false;
+                }
+                break;
+
             case 'clear_canvas':
                 if (data.user !== username) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -763,17 +921,71 @@
                     addSystemMessage(`${data.user} очистил холст`);
                 }
                 break;
-                
+
             case 'system_message':
                 addSystemMessage(data.message);
                 break;
+
+            case 'game_state_update':
+                // Обновление состояния игры (для режима "По очереди")
+                updateGameState(data);
+                break;
+
+            case 'sync_canvas':
+                // Синхронизация при подключении
+                if (data.user !== username && data.fullSync) {
+                    syncCanvasFromData(data.fullSync);
+                }
+                break;
+        }
+    }
+    
+    // Обновление состояния игры
+    function updateGameState(data) {
+        if (data.turn_count !== undefined) {
+            turnCount = data.turn_count;
+        }
+        if (data.is_current_drawer !== undefined) {
+            isCurrentDrawer = data.is_current_drawer;
+        }
+        if (data.is_finished) {
+            addSystemMessage(`🏆 Игра окончена!`);
+        }
+        if (data.current_drawer) {
+            addSystemMessage(`🎨 Теперь ходит: ${data.current_drawer}`);
+        }
+
+        // Обновляем UI
+        updateGameUI();
+    }
+
+    function updateGameUI() {
+        // Обновляем информацию о ходе для режима "По очереди"
+        if (gameMode === 'turn') {
+            const turnInfo = document.querySelector('.room-info p strong');
+            if (turnInfo && turnInfo.textContent.includes('Ход')) {
+                turnInfo.textContent = `🔄 Ход ${turnCount}/${maxTurns}`;
+            }
+            // Обновляем статус хода
+            const turnStatus = document.querySelector('.room-info p[style*="font-size: 14px"] span');
+            if (turnStatus) {
+                if (isCurrentDrawer) {
+                    turnStatus.textContent = '✅ Ваш ход! Рисуйте';
+                    turnStatus.style.color = '#2e7d32';
+                } else {
+                    turnStatus.textContent = '⏳ Ход соперника...';
+                    turnStatus.style.color = '#f57c00';
+                }
+            }
         }
     }
     
     function sendDrawingData(x, y) {
         if (socket && socket.readyState === WebSocket.OPEN) {
+            sequenceId++;
             const data = {
                 type: 'drawing',
+                seq: sequenceId,
                 data: {
                     tool: currentTool,
                     color: currentColor,
@@ -783,11 +995,12 @@
                     lastX: lastX,
                     lastY: lastY,
                     startX: startX,
-                    startY: startY
+                    startY: startY,
+                    isDrawing: isDrawing
                 },
                 action: isDrawing ? 'drawing' : 'end'
             };
-            
+
             socket.send(JSON.stringify(data));
         }
     }
@@ -799,62 +1012,124 @@
             }));
         }
     }
+
+    // Отправка данных фигуры (прямоугольник, круг, линия)
+    function sendShapeData(shapeType) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            sequenceId++;
+            const data = {
+                type: 'drawing',
+                seq: sequenceId,
+                data: {
+                    tool: shapeType,
+                    color: currentColor,
+                    size: brushSize,
+                    x: lastX,
+                    y: lastY,
+                    lastX: lastX,
+                    lastY: lastY,
+                    startX: startX,
+                    startY: startY,
+                    isDrawing: false
+                },
+                action: 'end'
+            };
+
+            socket.send(JSON.stringify(data));
+        }
+    }
     
     function handleRemoteDrawing(data) {
         const d = data.data;
-        
+
+        // Синхронизируем состояние инструмента
+        if (d.tool !== currentTool && data.action === 'drawing') {
+            // Не меняем наш текущий инструмент, но используем параметры удалённого
+            ctx.lineWidth = d.size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
         switch(d.tool) {
             case 'brush':
                 ctx.lineWidth = d.size;
                 ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
                 ctx.strokeStyle = d.color;
                 ctx.beginPath();
                 ctx.moveTo(d.lastX, d.lastY);
                 ctx.lineTo(d.x, d.y);
                 ctx.stroke();
                 break;
-                
+
             case 'eraser':
                 ctx.save();
                 ctx.globalCompositeOperation = 'destination-out';
                 ctx.lineWidth = d.size;
                 ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
                 ctx.beginPath();
                 ctx.moveTo(d.lastX, d.lastY);
                 ctx.lineTo(d.x, d.y);
                 ctx.stroke();
                 ctx.restore();
                 break;
-                
+
             case 'rectangle':
-                const width = d.x - d.startX;
-                const height = d.y - d.startY;
-                ctx.lineWidth = d.size;
-                ctx.strokeStyle = d.color;
-                ctx.strokeRect(d.startX, d.startY, width, height);
+                // Для фигур рисуем только при action='end'
+                // Используем lastX/lastY как финальные координаты
+                if (data.action === 'end') {
+                    redrawFromHistory();
+                    const width = d.lastX - d.startX;
+                    const height = d.lastY - d.startY;
+                    ctx.lineWidth = d.size;
+                    ctx.strokeStyle = d.color;
+                    ctx.strokeRect(d.startX, d.startY, width, height);
+                    saveToHistory();
+                }
                 break;
-                
+
             case 'circle':
-                const radius = Math.sqrt(Math.pow(d.x - d.startX, 2) + Math.pow(d.y - d.startY, 2));
-                ctx.lineWidth = d.size;
-                ctx.strokeStyle = d.color;
-                ctx.beginPath();
-                ctx.arc(d.startX, d.startY, radius, 0, Math.PI * 2);
-                ctx.stroke();
+                if (data.action === 'end') {
+                    redrawFromHistory();
+                    const radius = Math.sqrt(Math.pow(d.lastX - d.startX, 2) + Math.pow(d.lastY - d.startY, 2));
+                    ctx.lineWidth = d.size;
+                    ctx.strokeStyle = d.color;
+                    ctx.beginPath();
+                    ctx.arc(d.startX, d.startY, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    saveToHistory();
+                }
                 break;
-                
+
             case 'line':
-                ctx.lineWidth = d.size;
-                ctx.strokeStyle = d.color;
-                ctx.beginPath();
-                ctx.moveTo(d.startX, d.startY);
-                ctx.lineTo(d.x, d.y);
-                ctx.stroke();
+                if (data.action === 'end') {
+                    redrawFromHistory();
+                    ctx.lineWidth = d.size;
+                    ctx.strokeStyle = d.color;
+                    ctx.beginPath();
+                    ctx.moveTo(d.startX, d.startY);
+                    ctx.lineTo(d.lastX, d.lastY);
+                    ctx.stroke();
+                    saveToHistory();
+                }
                 break;
         }
-        
+
         if (data.action === 'end') {
-            saveToHistory();
+            isRemoteDrawing = false;
+        }
+    }
+
+    // Функция для отправки сообщения о смене инструмента
+    function sendToolChange() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'tool_change',
+                tool: currentTool,
+                color: currentColor,
+                size: brushSize
+            }));
         }
     }
     
@@ -873,20 +1148,37 @@
     function sendMessage() {
         const input = document.getElementById('chatInput');
         const message = input.value.trim();
-        
+
         if (message && socket && socket.readyState === WebSocket.OPEN) {
             const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
+
+            // Обычное сообщение чата
             socket.send(JSON.stringify({
                 type: 'chat_message',
                 message: message,
                 timestamp: timestamp
             }));
-            
+
             addChatMessage(username, message, timestamp);
             input.value = '';
             input.focus();
         }
+    }
+    
+    // Функция для получения CSRF токена
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
     
     function addChatMessage(user, message, timestamp) {
@@ -1028,23 +1320,58 @@ function showNotification(message) {
     
     function saveDrawing() {
         const imageData = canvas.toDataURL('image/png');
-        
+
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
                 type: 'save_drawing',
                 image_data: imageData
             }));
         }
-        
+
         // Создаем временную ссылку для скачивания
         const link = document.createElement('a');
         link.download = `pair_canvas_${roomCode}_${new Date().getTime()}.png`;
         link.href = imageData;
         link.click();
-        
+
         addSystemMessage('✅ Рисунок сохранен!');
     }
-    
+
+    // Завершение хода (для режима "По очереди")
+    function nextTurn() {
+        if (!isCurrentDrawer) {
+            addSystemMessage('⏳ Сейчас не ваш ход!');
+            return;
+        }
+
+        fetch(`/api/next_turn/${roomCode}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addSystemMessage(`✅ Ход завершён! Теперь ходит ${data.current_drawer}`);
+                if (data.is_finished) {
+                    addSystemMessage('🏆 Игра окончена! Совместный рисунок завершён.');
+                }
+                // Перезагружаем страницу для обновления состояния
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                addSystemMessage(`❌ ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка завершения хода:', error);
+            addSystemMessage('⚠️ Ошибка при завершении хода');
+        });
+    }
+
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', initCanvas);
 </script>

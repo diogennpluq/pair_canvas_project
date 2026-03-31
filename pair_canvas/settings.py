@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'channels',
     'accounts',
     'rooms',
-    'canvas_app',
     'gallery',
 ]
 

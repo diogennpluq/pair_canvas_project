@@ -5,34 +5,50 @@
 {% block content %}
 <div class="card" style="max-width: 600px; margin: 0 auto;">
     <h1 style="margin-bottom: 30px; text-align: center; color: #333;">Создать комнату</h1>
-    
+
     <form method="post">
         {% csrf_token %}
-        
+
         <div class="form-group">
             <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
                 Выберите режим рисования:
             </label>
-            <select name="mode" class="form-control" required>
+            <select name="mode" id="modeSelect" class="form-control" required onchange="toggleTurnsInput()">
                 <option value="free" selected>🎨 Свободное рисование</option>
-                <option value="turn">⏱️ По очереди (30 секунд на ход)</option>
+                <option value="turn">🔄 По очереди</option>
                 <option value="mirror">🪞 Зеркало (синхронное рисование)</option>
             </select>
         </div>
         
+        <div id="turnsInput" style="display: none; margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                Количество ходов (1-20):
+            </label>
+            <input type="number" name="max_turns" id="maxTurns" class="form-control" value="10" min="1" max="20">
+            <small style="color: #666;">Каждый игрок сделает половину от указанного количества ходов</small>
+        </div>
+
         <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
             <h3 style="color: #667eea; margin-bottom: 10px;">📝 Описание режимов:</h3>
-            <ul style="color: #666; padding-left: 20px;">
-                <li><strong>Свободное рисование:</strong> Оба участника рисуют одновременно без ограничений</li>
-                <li><strong>По очереди:</strong> Каждый участник рисует по 30 секунд, затем ход переходит другому</li>
-                <li><strong>Зеркало:</strong> Один участник рисует, а второй повторяет его действия в реальном времени</li>
+            <ul style="color: #666; padding-left: 20px; list-style: disc;">
+                <li><strong>🎨 Свободное рисование:</strong> Оба участника рисуют одновременно без ограничений</li>
+                <li><strong>🔄 По очереди:</strong> Игроки рисуют по очереди, создавая совместный арт. Первый рисует элемент, второй продолжает</li>
+                <li><strong>🪞 Зеркало:</strong> Один участник рисует, а второй повторяет его действия в реальном времени</li>
             </ul>
         </div>
-        
+
         <div style="display: flex; gap: 15px; margin-top: 30px;">
             <button type="submit" class="btn" style="flex: 1;">Создать комнату 🚀</button>
             <a href="{% url 'home' %}" class="btn btn-secondary" style="flex: 1;">Назад</a>
         </div>
     </form>
 </div>
+
+<script>
+function toggleTurnsInput() {
+    const mode = document.getElementById('modeSelect').value;
+    const turnsInput = document.getElementById('turnsInput');
+    turnsInput.style.display = mode === 'turn' ? 'block' : 'none';
+}
+</script>
 {% endblock %}
