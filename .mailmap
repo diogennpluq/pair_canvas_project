@@ -1,0 +1,7 @@
+# Маппинг авторов для GitHub Contributors
+# Формат: Правильное Имя <Правильный Email> <Старый Email>
+
+# Связываем все возможные email с основным аккаунтом
+diogennpluq <complyno5@gmail.com> <qwencoder@users.noreply.github.com>
+diogennpluq <complyno5@gmail.com> <qwencoder>
+diogennpluq <complyno5@gmail.com> <encoder@users.noreply.github.com>
