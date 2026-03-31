@@ -261,7 +261,6 @@ python manage.py test
 
 - Django Community
 - Channels Team
-- Всем контрибьюторам
 
 ## 📞 Контакты
 
