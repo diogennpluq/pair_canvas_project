@@ -81,6 +81,56 @@
             align-items: center;
             gap: 10px;
         }
+
+        .admin-badge {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+            display: inline-block;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+            }
+            50% {
+                box-shadow: 0 2px 15px rgba(245, 158, 11, 0.6);
+            }
+        }
+
+        .admin-link {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white !important;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .admin-link:hover {
+            background: #f0f0f0;
+            color: #667eea !important;
+            transform: translateY(-2px);
+        }
+
+        .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 2px solid #667eea;
+        }
         
         .avatar {
             width: 40px;
@@ -260,9 +310,21 @@
                     <div class="user-info">
                         {% if user.avatar %}
                             <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="avatar">
+                        {% else %}
+                            <div class="avatar avatar-placeholder">👤</div>
                         {% endif %}
-                        <span>Привет, {{ user.username }}!</span>
+                        <span>
+                            Привет, {{ user.username }}!
+                            {% if user.is_staff %}
+                                <span class="admin-badge" title="Администратор">🛡️ Админ</span>
+                            {% endif %}
+                        </span>
                     </div>
+                    {% if user.is_staff %}
+                        <a href="{% url 'admin:index' %}" class="nav-link admin-link" title="Панель администратора">
+                            ⚙️ Админка
+                        </a>
+                    {% endif %}
                     <a href="{% url 'create_room' %}" class="nav-link">Создать комнату</a>
                     <a href="{% url 'join_room' %}" class="nav-link">Присоединиться</a>
                     <a href="{% url 'gallery' %}" class="nav-link">Галерея</a>

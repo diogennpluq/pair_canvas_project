@@ -2,10 +2,105 @@
 
 {% block title %}Профиль - {{ user.username }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .admin-status-card {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+    }
+
+    .admin-status-card .icon {
+        font-size: 48px;
+    }
+
+    .admin-status-card .info h3 {
+        margin: 0 0 5px 0;
+        font-size: 20px;
+    }
+
+    .admin-status-card .info p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 14px;
+    }
+
+    .admin-privileges {
+        background: #f0f9ff;
+        border: 2px solid #0ea5e9;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+
+    .admin-privileges h4 {
+        color: #0369a1;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .privileges-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 10px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .privileges-list li {
+        padding: 10px 15px;
+        background: white;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #334155;
+    }
+
+    .privileges-list li::before {
+        content: '✓';
+        color: #10b981;
+        font-weight: bold;
+        font-size: 18px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card" style="max-width: 800px; margin: 0 auto;">
     <h1 style="margin-bottom: 30px; text-align: center; color: #333;">👤 Ваш профиль</h1>
-    
+
+    {% if user.is_staff %}
+        <div class="admin-status-card">
+            <div class="icon">🛡️</div>
+            <div class="info">
+                <h3>Администратор Pair Canvas</h3>
+                <p>У вас есть доступ к панели управления сайтом</p>
+            </div>
+        </div>
+
+        <div class="admin-privileges">
+            <h4>⚙️ Ваши привилегии:</h4>
+            <ul class="privileges-list">
+                <li>Доступ к Django Admin панели</li>
+                <li>Управление пользователями</li>
+                <li>Управление комнатами</li>
+                <li>Управление рисунками</li>
+                <li>Просмотр статистики сайта</li>
+                <li>Модерация контента</li>
+            </ul>
+        </div>
+    {% endif %}
+
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         
