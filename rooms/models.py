@@ -87,7 +87,8 @@ class ChatMessage(models.Model):
 
 class Drawing(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='drawings')
-    image_data = models.TextField()  # Храним как base64
+    image = models.ImageField(upload_to='drawings/%Y/%m/%d/', blank=True, null=True)
+    image_data = models.TextField(blank=True, default='')  # Храним как base64 для обратной совместимости
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 

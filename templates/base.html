@@ -359,8 +359,8 @@
     </div>
 
     <!-- Фоновая музыка -->
-    <audio id="backgroundMusic" loop>
-        <source src="{% static 'audio/сайт музло денис рамм.mp3' %}" type="audio/mpeg">
+    <audio id="backgroundMusic" loop preload="metadata">
+        <source src="{% static 'audio/background_music.mp3' %}" type="audio/mpeg">
         Ваш браузер не поддерживает аудио элемент.
     </audio>
 
@@ -368,39 +368,83 @@
     <script>
         // Управление фоновой музыкой
         let musicPlaying = false;
-        const music = document.getElementById('backgroundMusic');
-        const musicBtn = document.getElementById('musicToggle');
+        let musicInitialized = false;
+        let music = null;
+        let musicBtn = null;
+
+        // Функция для обновления состояния кнопки
+        function updateMusicButton() {
+            if (musicBtn) {
+                musicBtn.textContent = musicPlaying ? '🔊' : '🔇';
+            }
+        }
 
         // Загрузка настройки из localStorage
         document.addEventListener('DOMContentLoaded', function() {
+            music = document.getElementById('backgroundMusic');
+            musicBtn = document.getElementById('musicToggle');
+            
             const savedState = localStorage.getItem('musicPlaying');
-            if (savedState === 'true') {
-                musicPlaying = true;
+            musicPlaying = savedState === 'true';
+            updateMusicButton();
+
+            // Пытаемся воспроизвести музыку при первом взаимодействии пользователя
+            if (musicPlaying && !musicInitialized && music) {
+                musicInitialized = true;
                 music.volume = 0.3; // 30% громкость для фоновой музыки
+
+                // Пробуем воспроизвести сразу (если браузер разрешит)
                 music.play().then(() => {
-                    musicBtn.textContent = '🔊';
+                    updateMusicButton();
                 }).catch(e => {
-                    console.log('Автовоспроизведение заблокировано браузером');
-                    musicPlaying = false;
-                    musicBtn.textContent = '🔇';
+                    // Если автовоспроизведение заблокировано, ждём первого клика
+                    console.log('Ожидание взаимодействия для воспроизведения музыки');
+
+                    const enableMusicOnInteraction = () => {
+                        if (music) {
+                            music.play().then(() => {
+                                updateMusicButton();
+                            }).catch(e => {
+                                console.log('Не удалось воспроизвести музыку:', e);
+                                musicPlaying = false;
+                                localStorage.setItem('musicPlaying', 'false');
+                                updateMusicButton();
+                            });
+                        }
+
+                        // Удаляем все слушатели после первого взаимодействия
+                        document.removeEventListener('click', enableMusicOnInteraction);
+                        document.removeEventListener('keydown', enableMusicOnInteraction);
+                        document.removeEventListener('touchstart', enableMusicOnInteraction);
+                    };
+
+                    // Слушаем первое взаимодействие пользователя
+                    document.addEventListener('click', enableMusicOnInteraction, { once: true });
+                    document.addEventListener('keydown', enableMusicOnInteraction, { once: true });
+                    document.addEventListener('touchstart', enableMusicOnInteraction, { once: true });
                 });
             }
         });
 
         function toggleMusic() {
+            if (!music || !musicBtn) {
+                music = document.getElementById('backgroundMusic');
+                musicBtn = document.getElementById('musicToggle');
+            }
+            
             if (musicPlaying) {
                 music.pause();
-                musicBtn.textContent = '🔇';
                 musicPlaying = false;
             } else {
                 music.volume = 0.3;
                 music.play().then(() => {
-                    musicBtn.textContent = '🔊';
                     musicPlaying = true;
                 }).catch(e => {
                     console.error('Ошибка воспроизведения:', e);
+                    musicPlaying = false;
                 });
             }
+            updateMusicButton();
             // Сохраняем состояние в localStorage
             localStorage.setItem('musicPlaying', musicPlaying);
         }

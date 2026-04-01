@@ -121,19 +121,16 @@
     <h2 class="section-title">🎨 Мои рисунки</h2>
     <div class="gallery-container">
         {% for drawing in user_drawings %}
-            <div class="gallery-item" onclick="viewDrawing('{{ drawing.image_data }}')">
-                <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 60px; margin-bottom: 10px;">🎨</div>
-                        <div style="color: #666;">Нажмите для просмотра</div>
-                    </div>
-                </div>
+            <div class="gallery-item" onclick="viewDrawing('{% if drawing.image %}{{ drawing.image.url }}{% else %}{{ drawing.image_data }}{% endif %}')">
+                <img src="{% if drawing.image %}{{ drawing.image.url }}{% else %}{{ drawing.image_data }}{% endif %}" 
+                     alt="Рисунок" class="gallery-image"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\'height: 250px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;\'><div style=\'text-align: center;\'><div style=\'font-size: 60px; margin-bottom: 10px;\'>🎨</div><div style=\'color: #666;\'>Нажмите для просмотра</div></div></div>'">
                 <div class="gallery-info">
                     <div class="gallery-author">
                         {% if drawing.created_by.avatar %}
                             <img src="{{ drawing.created_by.avatar.url }}" alt="{{ drawing.created_by.username }}" class="author-avatar">
                         {% else %}
-                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white; 
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white;
                                         display: flex; align-items: center; justify-content: center;">
                                 👤
                             </div>
@@ -164,19 +161,16 @@
     <div class="gallery-container">
         {% for drawing in recent_drawings %}
             {% if drawing.created_by != user %}
-                <div class="gallery-item" onclick="viewDrawing('{{ drawing.image_data }}')">
-                    <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 60px; margin-bottom: 10px;">🎨</div>
-                            <div style="color: #666;">Нажмите для просмотра</div>
-                        </div>
-                    </div>
+                <div class="gallery-item" onclick="viewDrawing('{% if drawing.image %}{{ drawing.image.url }}{% else %}{{ drawing.image_data }}{% endif %}')">
+                    <img src="{% if drawing.image %}{{ drawing.image.url }}{% else %}{{ drawing.image_data }}{% endif %}" 
+                         alt="Рисунок" class="gallery-image"
+                         onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\'height: 250px; display: flex; align-items: center; justify-content: center; background: #f8f9fa;\'><div style=\'text-align: center;\'><div style=\'font-size: 60px; margin-bottom: 10px;\'>🎨</div><div style=\'color: #666;\'>Нажмите для просмотра</div></div></div>'">
                     <div class="gallery-info">
                         <div class="gallery-author">
                             {% if drawing.created_by.avatar %}
                                 <img src="{{ drawing.created_by.avatar.url }}" alt="{{ drawing.created_by.username }}" class="author-avatar">
                             {% else %}
-                                <div style="width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white; 
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white;
                                             display: flex; align-items: center; justify-content: center;">
                                     👤
                                 </div>

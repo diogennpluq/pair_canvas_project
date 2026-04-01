@@ -10,4 +10,7 @@ urlpatterns = [
     # Endpoints для режима "По очереди"
     path('get_state/<str:room_code>/', api_views.get_room_state, name='get_room_state'),
     path('next_turn/<str:room_code>/', api_views.next_turn, name='next_turn'),
+    
+    # Сохранение рисунка
+    path('save_drawing/<str:room_code>/', api_views.save_drawing, name='save_drawing'),
 ]

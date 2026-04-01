@@ -1,8 +1,11 @@
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
+from django.core.files.base import ContentFile
 from .models import Room, ChatMessage, Drawing
 import json
+import base64
+from datetime import datetime
 
 @login_required
 def check_room(request, room_code):
@@ -133,10 +136,10 @@ def next_turn(request, room_code):
         # Отправляем уведомление через WebSocket
         from channels.layers import get_channel_layer
         from asgiref.sync import async_to_sync
-        
+
         channel_layer = get_channel_layer()
         room_group_name = f'room_{room.code}'
-        
+
         async_to_sync(channel_layer.group_send)(
             room_group_name,
             {
@@ -159,3 +162,60 @@ def next_turn(request, room_code):
         })
     except Room.DoesNotExist:
         return JsonResponse({'error': 'Комната не найдена'}, status=404)
+
+
+@login_required
+@require_http_methods(["POST"])
+def save_drawing(request, room_code):
+    """Сохранение рисунка в базу данных"""
+    try:
+        room = Room.objects.get(code=room_code, is_active=True)
+        
+        # Проверка: пользователь должен быть в комнате
+        if not room.is_user_in_room(request.user):
+            return JsonResponse({'error': 'Вы не в комнате'}, status=403)
+        
+        data = json.loads(request.body)
+        image_data = data.get('image_data', '')
+        
+        if not image_data:
+            return JsonResponse({'error': 'Нет данных изображения'}, status=400)
+        
+        # Декодируем base64 изображение
+        if image_data.startswith('data:image'):
+            # Извлекаем формат изображения
+            format_part = image_data.split(';')[0].split('/')[1]
+            if format_part == 'svg+xml':
+                format_part = 'svg'
+            image_format = format_part if format_part in ['png', 'jpeg', 'jpg', 'svg'] else 'png'
+            
+            # Удаляем префикс data:image/...;base64,
+            image_data = image_data.split(',')[1]
+        
+        # Декодируем base64
+        image_bytes = base64.b64decode(image_data)
+        
+        # Создаём файл из байтов
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'drawing_{room_code}_{timestamp}.{image_format}'
+        
+        # Сохраняем рисунок
+        drawing = Drawing.objects.create(
+            room=room,
+            created_by=request.user,
+            image_data=image_data  # Сохраняем base64 для обратной совместимости
+        )
+        
+        # Сохраняем изображение как файл
+        drawing.image.save(filename, ContentFile(image_bytes), save=True)
+        
+        return JsonResponse({
+            'success': True,
+            'drawing_id': drawing.id,
+            'image_url': drawing.image.url if drawing.image else None
+        })
+        
+    except Room.DoesNotExist:
+        return JsonResponse({'error': 'Комната не найдена'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

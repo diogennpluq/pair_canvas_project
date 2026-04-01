@@ -170,7 +170,18 @@ class RoomConsumer(AsyncWebsocketConsumer):
                         'tool': data.get('tool', 'brush')
                     }
                 )
-                
+
+            elif message_type == 'undo_action':
+                # Отправляем команду отмены действия
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'undo_action',
+                        'user': self.scope['user'].username,
+                        'seq': data.get('seq', 0)
+                    }
+                )
+
             elif message_type == 'ping':
                 # Ответ на ping для поддержания соединения
                 await self.send(text_data=json.dumps({
@@ -240,7 +251,15 @@ class RoomConsumer(AsyncWebsocketConsumer):
             'user': event['user'],
             'tool': event.get('tool', 'brush')
         }))
-    
+
+    async def undo_action(self, event):
+        # Отправляем команду отмены действия
+        await self.send(text_data=json.dumps({
+            'type': 'undo_action',
+            'user': event['user'],
+            'seq': event.get('seq', 0)
+        }))
+
     async def user_joined(self, event):
         # Уведомление о присоединении пользователя
         await self.send(text_data=json.dumps({

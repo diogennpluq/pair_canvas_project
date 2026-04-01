@@ -6,6 +6,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python)
 ![WebSocket](https://img.shields.io/badge/WebSocket-Channels-090909?style=flat&logo=websocket)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=flat)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)
 
 ## ✨ Возможности
 
@@ -30,17 +31,19 @@
 
 ### 🎵 Дополнительно
 - Фоновая музыка с кнопкой управления
-- Сохранение состояния музыки
+- Сохранение состояния музыки между страницами
+- Галерея сохранённых рисунков
 - Адаптивный дизайн для мобильных устройств
 
 ## 🚀 Быстрый старт
 
 ### Требования
 - Python 3.10+
-- PostgreSQL (опционально, по умолчанию SQLite)
-- Redis (опционально, для production)
+- PostgreSQL (для production)
+- Redis (для production)
+- Docker и Docker Compose (опционально, для production)
 
-### Установка
+### Установка (Development)
 
 1. **Клонируйте репозиторий:**
 ```bash
@@ -61,25 +64,51 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
-4. **Выполните миграции:**
+4. **Создайте файл окружения:**
+```bash
+cp .env.example .env
+```
+
+5. **Выполните миграции:**
 ```bash
 python manage.py migrate
 ```
 
-5. **Соберите статические файлы:**
+6. **Соберите статические файлы:**
 ```bash
-python manage.py collectstatic
+python manage.py collectstatic --noinput
 ```
 
-6. **Запустите сервер разработки:**
+7. **Запустите сервер разработки:**
 ```bash
 python manage.py runserver
 ```
 
-7. **Откройте браузер:**
+8. **Откройте браузер:**
 ```
 http://127.0.0.1:8000/
 ```
+
+### Установка (Production с Docker)
+
+1. **Настройте окружение:**
+```bash
+cp .env.example .env
+# Отредактируйте .env, установив SECRET_KEY и другие переменные
+```
+
+2. **Запустите проект:**
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+3. **Откройте браузер:**
+```
+http://localhost:8000/
+```
+
+📖 Полная документация по production установке: [README_PRODUCTION.md](README_PRODUCTION.md)
 
 ## 📖 Использование
 
@@ -121,11 +150,20 @@ pair_canvas_project/
 ├── gallery/           # Галерея рисунков
 ├── templates/         # HTML шаблоны
 ├── static/           # Статические файлы
-│   └── audio/        # Фоновая музыка
-└── pair_canvas/      # Настройки проекта
-    ├── settings.py
-    ├── urls.py
-    └── asgi.py       # ASGI конфигурация
+│   ├── audio/        # Фоновая музыка
+│   └── images/       # Изображения
+├── media/            # Загруженные файлы (drawings, avatars)
+├── pair_canvas/      # Настройки проекта
+│   ├── settings.py
+│   ├── settings_prod.py  # Production настройки
+│   ├── urls.py
+│   └── asgi.py       # ASGI конфигурация
+├── docker-compose.yml
+├── Dockerfile
+├── nginx.conf
+├── deploy.sh
+├── backup.sh
+└── requirements.txt
 ```
 
 ## 🔧 Технологии
@@ -137,41 +175,42 @@ pair_canvas_project/
 | **Daphne** | ASGI сервер |
 | **HTML5 Canvas** | Рисование на холсте |
 | **JavaScript** | Клиентская логика |
-| **SQLite/PostgreSQL** | База данных |
-| **Redis** | Канальный слой (production) |
+| **PostgreSQL** | База данных (production) |
+| **SQLite** | База данных (development) |
+| **Redis** | Канальный слой и кэш |
+| **Docker** | Контейнеризация |
+| **Nginx** | Reverse proxy |
+| **WhiteNoise** | Статические файлы |
+| **Gunicorn** | WSGI сервер (опционально) |
 
 ## ⚙️ Настройки
 
-### Переменные окружения (опционально)
+### Переменные окружения
 
-Создайте файл `.env` в корне проекта:
+Создайте файл `.env` в корне проекта (скопируйте из `.env.example`):
 
 ```env
+# Django
 SECRET_KEY=your-secret-key-here
 DEBUG=False
 ALLOWED_HOSTS=yourdomain.com
 
-# База данных (для production)
-DATABASE_URL=postgresql://user:password@localhost:5432/pair_canvas
+# Database
+POSTGRES_DB=pair_canvas
+POSTGRES_USER=pair_canvas
+POSTGRES_PASSWORD=your-password
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
 
-# Redis (для production)
-REDIS_URL=redis://localhost:6379/0
+# Redis
+REDIS_URL=redis://localhost:6379/1
+
+# Email
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
 ```
 
-### Настройка Channels
-
-Для production измените `CHANNEL_LAYERS` в `settings.py`:
-
-```python
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("redis://127.0.0.1:6379/1")],
-        },
-    },
-}
-```
+📖 Полная документация: [README_PRODUCTION.md](README_PRODUCTION.md)
 
 ## 🧪 Тестирование
 
@@ -186,6 +225,41 @@ python manage.py test
 - Тесты представлений
 - Тесты API
 - Тесты режимов рисования
+
+## 🔧 Production возможности
+
+### 🐘 База данных
+- PostgreSQL с подключением через переменные окружения
+- Миграции и бэкапы через Docker
+
+### 📸 Галерея рисунков
+- Сохранение рисунков в базу данных
+- Хранение изображений в файловой системе
+- Просмотр галереи по адресу `/gallery/`
+
+### 🎵 Музыка
+- Сохранение состояния музыки между страницами
+- Автоматическое воспроизведение после первого взаимодействия
+
+### 🔒 Безопасность
+- HTTPS поддержка
+- CSRF защита
+- Rate limiting для API
+- Безопасные cookies
+
+### 📊 Мониторинг
+- Логгирование событий
+- Отслеживание ошибок
+- Уведомления администраторам
+
+### 🧹 Обслуживание
+```bash
+# Очистка старых рисунков (старше 30 дней)
+python manage.py cleanup_old_drawings --days 30
+
+# Бэкап базы данных
+./backup.sh
+```
 
 ## 📝 API Endpoints
 

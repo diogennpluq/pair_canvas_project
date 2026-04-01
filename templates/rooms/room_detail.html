@@ -776,9 +776,9 @@
             const imageData = drawingHistory[historyIndex];
             ctx.putImageData(imageData, 0, 0);
             updateUndoRedoButtons();
-            
-            // Отправляем команду отмены
-            sendClearCanvas();
+
+            // Отправляем команду отмены последнего действия
+            sendUndoLastAction();
         }
     }
     
@@ -938,6 +938,13 @@
                     syncCanvasFromData(data.fullSync);
                 }
                 break;
+
+            case 'undo_action':
+                // Отмена последнего действия у другого пользователя
+                if (data.user !== username) {
+                    undoRemoteAction(data);
+                }
+                break;
         }
     }
     
@@ -980,6 +987,20 @@
             }
         }
     }
+
+    // Отмена последнего действия удалённого пользователя
+    function undoRemoteAction(data) {
+        // Удаляем последнее состояние из истории
+        if (drawingHistory.length > 1) {
+            // Восстанавливаем состояние до последнего сохранённого
+            historyIndex = drawingHistory.length - 2;
+            const imageData = drawingHistory[historyIndex];
+            ctx.putImageData(imageData, 0, 0);
+            // Удаляем последнее действие
+            drawingHistory.pop();
+            updateUndoRedoButtons();
+        }
+    }
     
     function sendDrawingData(x, y) {
         if (socket && socket.readyState === WebSocket.OPEN) {
@@ -1010,6 +1031,17 @@
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
                 type: 'clear_canvas'
+            }));
+        }
+    }
+
+    // Отправка команды отмены последнего действия
+    function sendUndoLastAction() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            sequenceId++;
+            socket.send(JSON.stringify({
+                type: 'undo_action',
+                seq: sequenceId
             }));
         }
     }
@@ -1080,7 +1112,6 @@
                 // Для фигур рисуем только при action='end'
                 // Используем lastX/lastY как финальные координаты
                 if (data.action === 'end') {
-                    redrawFromHistory();
                     const width = d.lastX - d.startX;
                     const height = d.lastY - d.startY;
                     ctx.lineWidth = d.size;
@@ -1092,7 +1123,6 @@
 
             case 'circle':
                 if (data.action === 'end') {
-                    redrawFromHistory();
                     const radius = Math.sqrt(Math.pow(d.lastX - d.startX, 2) + Math.pow(d.lastY - d.startY, 2));
                     ctx.lineWidth = d.size;
                     ctx.strokeStyle = d.color;
@@ -1105,7 +1135,6 @@
 
             case 'line':
                 if (data.action === 'end') {
-                    redrawFromHistory();
                     ctx.lineWidth = d.size;
                     ctx.strokeStyle = d.color;
                     ctx.beginPath();
@@ -1153,14 +1182,13 @@
         if (message && socket && socket.readyState === WebSocket.OPEN) {
             const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // Обычное сообщение чата
+            // Отправляем сообщение на сервер, оно вернётся через WebSocket и будет отображено
             socket.send(JSON.stringify({
                 type: 'chat_message',
                 message: message,
                 timestamp: timestamp
             }));
 
-            addChatMessage(username, message, timestamp);
             input.value = '';
             input.focus();
         }
@@ -1322,20 +1350,36 @@ function showNotification(message) {
     function saveDrawing() {
         const imageData = canvas.toDataURL('image/png');
 
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({
-                type: 'save_drawing',
+        // Сохраняем рисунок в базу данных через API
+        fetch(`/api/save_drawing/${roomCode}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
                 image_data: imageData
-            }));
-        }
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addSystemMessage('✅ Рисунок сохранен в галерею!');
+            } else {
+                addSystemMessage('❌ Ошибка сохранения рисунка');
+                console.error('Ошибка сохранения:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка сети:', error);
+            addSystemMessage('⚠️ Ошибка при сохранении рисунка');
+        });
 
         // Создаем временную ссылку для скачивания
         const link = document.createElement('a');
         link.download = `pair_canvas_${roomCode}_${new Date().getTime()}.png`;
         link.href = imageData;
         link.click();
-
-        addSystemMessage('✅ Рисунок сохранен!');
     }
 
     // Завершение хода (для режима "По очереди")
