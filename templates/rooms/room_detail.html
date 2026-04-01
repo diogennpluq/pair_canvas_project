@@ -449,6 +449,7 @@
     let isCurrentDrawer = {{ is_current_drawer|lower }};
     let turnCount = {{ room.turn_count }};
     let maxTurns = {{ room.max_turns }};
+    let gameMode = '{{ room.mode }}';
 
     // WebSocket соединение
     let socket = null;

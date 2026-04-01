@@ -53,13 +53,17 @@ def leave_room_api(request, room_code):
     try:
         room = Room.objects.get(code=room_code)
 
+        # Проверяем, что пользователь находится в комнате
+        if not room.is_user_in_room(request.user):
+            return JsonResponse({'success': False, 'error': 'Вы не в комнате'})
+
         if request.user == room.participant:
             room.participant = None
-            room.save()
+            room.save(update_fields=['participant'])
         elif request.user == room.creator:
             # Если создатель выходит - закрываем комнату
             room.is_active = False
-            room.save()
+            room.save(update_fields=['is_active'])
 
         return JsonResponse({'success': True})
     except Room.DoesNotExist:
@@ -115,6 +119,10 @@ def next_turn(request, room_code):
     """Переход к следующему ходу (для режима 'По очереди')"""
     try:
         room = Room.objects.get(code=room_code, mode='turn')
+
+        # Проверка: пользователь должен быть в комнате
+        if not room.is_user_in_room(request.user):
+            return JsonResponse({'error': 'Вы не в комнате'}, status=403)
 
         # Проверка: только текущий рисующий может завершить ход
         if not room.current_turn or room.current_turn != request.user:

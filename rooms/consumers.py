@@ -270,33 +270,50 @@ class RoomConsumer(AsyncWebsocketConsumer):
             return Room.objects.get(code=self.room_code, is_active=True)
         except Room.DoesNotExist:
             return None
+        except Exception:
+            # Любые другие ошибки БД
+            return None
 
     @database_sync_to_async
     def is_user_in_room(self):
         try:
-            room = Room.objects.get(code=self.room_code)
+            room = Room.objects.get(code=self.room_code, is_active=True)
             user = self.scope['user']
             return room.is_user_in_room(user)
         except Room.DoesNotExist:
             return False
+        except Exception:
+            # Любые другие ошибки
+            return False
 
     @database_sync_to_async
     def save_chat_message(self, message):
-        room = Room.objects.get(code=self.room_code)
-        ChatMessage.objects.create(
-            room=room,
-            user=self.scope['user'],
-            message=message
-        )
+        try:
+            room = Room.objects.get(code=self.room_code, is_active=True)
+            ChatMessage.objects.create(
+                room=room,
+                user=self.scope['user'],
+                message=message
+            )
+        except Room.DoesNotExist:
+            # Комната не существует или неактивна, игнорируем сообщение
+            pass
 
     @database_sync_to_async
     def save_drawing(self, image_data):
-        room = Room.objects.get(code=self.room_code)
-        Drawing.objects.create(
-            room=room,
-            image_data=image_data,
-            created_by=self.scope['user']
-        )
+        try:
+            room = Room.objects.get(code=self.room_code, is_active=True)
+            # Проверяем, что пользователь имеет доступ к комнате
+            if not room.is_user_in_room(self.scope['user']):
+                return
+            Drawing.objects.create(
+                room=room,
+                image_data=image_data,
+                created_by=self.scope['user']
+            )
+        except Room.DoesNotExist:
+            # Комната не существует или неактивна, игнорируем
+            pass
     
     async def send_game_state(self, room):
         """Отправка состояния игры клиенту"""

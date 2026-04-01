@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from accounts import views as accounts_views
+from accounts.forms import CustomPasswordResetForm, CustomSetPasswordForm
 from rooms import views as rooms_views
 from gallery import views as gallery_views
 
@@ -21,6 +22,7 @@ urlpatterns = [
         template_name='accounts/password_reset.html',
         email_template_name='accounts/password_reset_email.html',
         subject_template_name='accounts/password_reset_subject.txt',
+        form_class=CustomPasswordResetForm,
         success_url='/password-reset/done/'
     ), name='password_reset'),
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(
@@ -28,6 +30,7 @@ urlpatterns = [
     ), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
         template_name='accounts/password_reset_confirm.html',
+        form_class=CustomSetPasswordForm,
         success_url='/reset/done/'
     ), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(

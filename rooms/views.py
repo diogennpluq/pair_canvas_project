@@ -86,17 +86,17 @@ def leave_room(request, room_code):
     if request.method != 'POST':
         messages.error(request, 'Некорректный запрос')
         return redirect('home')
-    
+
     room = get_object_or_404(Room, code=room_code)
 
     if request.user == room.participant:
         room.participant = None
-        room.save()
+        room.save(update_fields=['participant'])
         messages.success(request, 'Вы покинули комнату')
     elif request.user == room.creator:
         # Если создатель выходит - закрываем комнату
         room.is_active = False
-        room.save()
+        room.save(update_fields=['is_active'])
         messages.success(request, 'Вы закрыли комнату')
 
     return redirect('home')

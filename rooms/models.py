@@ -1,5 +1,7 @@
-from django.db import models
+from django.db import models, transaction
+from django.db.models import F
 from django.conf import settings
+from django.contrib.auth import get_user_model
 import random
 import string
 
@@ -26,8 +28,9 @@ class Room(models.Model):
         return f"Комната {self.code} ({self.get_mode_display()})"
 
     def save(self, *args, **kwargs):
-        if not self.code:
-            # Генерируем уникальный код комнаты
+        """Генерируем уникальный код комнаты только при создании"""
+        if not self.code and self._state.adding:
+            # Генерируем уникальный код комнаты только для новых объектов
             self.code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         super().save(*args, **kwargs)
 
@@ -98,9 +101,13 @@ class Drawing(models.Model):
 
     def save(self, *args, **kwargs):
         # Обновляем счётчик рисунков пользователя только при первом создании
-        is_new = self.pk is None
-        if is_new:
-            self.created_by.drawings_count = (self.created_by.drawings_count or 0) + 1
-            self.created_by.score = (self.created_by.score or 0) + 10  # 10 очков за каждый рисунок
-            self.created_by.save(update_fields=['drawings_count', 'score'])
+        is_new = self._state.adding
+        if is_new and self.created_by_id:
+            # Обновляем счётчик атомарно с использованием F-выражений
+            with transaction.atomic():
+                User = get_user_model()
+                User.objects.filter(pk=self.created_by_id).update(
+                    drawings_count=F('drawings_count') + 1,
+                    score=F('score') + 10
+                )
         super().save(*args, **kwargs)
