@@ -329,7 +329,10 @@
                     <a href="{% url 'join_room' %}" class="nav-link">Присоединиться</a>
                     <a href="{% url 'gallery' %}" class="nav-link">Галерея</a>
                     <a href="{% url 'profile' %}" class="nav-link">Профиль</a>
-                    <a href="{% url 'logout' %}" class="btn btn-secondary">Выйти</a>
+                    <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary">Выйти</button>
+                    </form>
                 {% else %}
                     <a href="{% url 'login' %}" class="nav-link">Войти</a>
                     <a href="{% url 'register' %}" class="btn">Регистрация</a>
