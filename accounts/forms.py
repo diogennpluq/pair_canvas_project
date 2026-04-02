@@ -53,3 +53,32 @@ class CustomPasswordChangeForm(PasswordChangeForm):
             'placeholder': 'Повторите новый пароль'
         }),
     )
+
+class CustomPasswordResetForm(PasswordResetForm):
+    email = forms.EmailField(
+        label="Email",
+        max_length=254,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'required': True,
+            'autofocus': True,
+            'placeholder': 'your@email.com'
+        })
+    )
+
+class CustomSetPasswordForm(SetPasswordForm):
+    new_password1 = forms.CharField(
+        label="Новый пароль",
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'required': True,
+            'autofocus': True
+        }),
+    )
+    new_password2 = forms.CharField(
+        label="Подтверждение пароля",
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'required': True
+        }),
+    )
