@@ -334,10 +334,6 @@
                     <a href="{% url 'login' %}" class="nav-link">Войти</a>
                     <a href="{% url 'register' %}" class="btn">Регистрация</a>
                 {% endif %}
-                <!-- Кнопка управления музыкой -->
-                <button id="musicToggle" onclick="toggleMusic()" class="btn" style="padding: 8px 16px; font-size: 18px;" title="Включить/выключить музыку">
-                    🔇
-                </button>
             </div>
         </nav>
         
@@ -366,88 +362,44 @@
 
     <!-- JavaScript -->
     <script>
-        // Управление фоновой музыкой
-        let musicPlaying = false;
-        let musicInitialized = false;
+        // Фоновая музыка - автовоспроизведение при загрузке
         let music = null;
-        let musicBtn = null;
 
-        // Функция для обновления состояния кнопки
-        function updateMusicButton() {
-            if (musicBtn) {
-                musicBtn.textContent = musicPlaying ? '🔊' : '🔇';
-            }
-        }
-
-        // Загрузка настройки из localStorage
         document.addEventListener('DOMContentLoaded', function() {
             music = document.getElementById('backgroundMusic');
-            musicBtn = document.getElementById('musicToggle');
             
-            const savedState = localStorage.getItem('musicPlaying');
-            musicPlaying = savedState === 'true';
-            updateMusicButton();
+            // Устанавливаем громкость 20%
+            music.volume = 0.2;
 
-            // Пытаемся воспроизвести музыку при первом взаимодействии пользователя
-            if (musicPlaying && !musicInitialized && music) {
-                musicInitialized = true;
-                music.volume = 0.3; // 30% громкость для фоновой музыки
+            // Пытаемся воспроизвести музыку сразу
+            music.play().then(() => {
+                console.log('Музыка воспроизводится');
+            }).catch(e => {
+                // Если автовоспроизведение заблокировано, ждём первого взаимодействия
+                console.log('Ожидание взаимодействия для воспроизведения музыки');
 
-                // Пробуем воспроизвести сразу (если браузер разрешит)
-                music.play().then(() => {
-                    updateMusicButton();
-                }).catch(e => {
-                    // Если автовоспроизведение заблокировано, ждём первого клика
-                    console.log('Ожидание взаимодействия для воспроизведения музыки');
+                const enableMusicOnInteraction = () => {
+                    if (music) {
+                        music.volume = 0.2;
+                        music.play().then(() => {
+                            console.log('Музыка воспроизводится после взаимодействия');
+                        }).catch(e => {
+                            console.log('Не удалось воспроизвести музыку:', e);
+                        });
+                    }
 
-                    const enableMusicOnInteraction = () => {
-                        if (music) {
-                            music.play().then(() => {
-                                updateMusicButton();
-                            }).catch(e => {
-                                console.log('Не удалось воспроизвести музыку:', e);
-                                musicPlaying = false;
-                                localStorage.setItem('musicPlaying', 'false');
-                                updateMusicButton();
-                            });
-                        }
+                    // Удаляем все слушатели после первого взаимодействия
+                    document.removeEventListener('click', enableMusicOnInteraction);
+                    document.removeEventListener('keydown', enableMusicOnInteraction);
+                    document.removeEventListener('touchstart', enableMusicOnInteraction);
+                };
 
-                        // Удаляем все слушатели после первого взаимодействия
-                        document.removeEventListener('click', enableMusicOnInteraction);
-                        document.removeEventListener('keydown', enableMusicOnInteraction);
-                        document.removeEventListener('touchstart', enableMusicOnInteraction);
-                    };
-
-                    // Слушаем первое взаимодействие пользователя
-                    document.addEventListener('click', enableMusicOnInteraction, { once: true });
-                    document.addEventListener('keydown', enableMusicOnInteraction, { once: true });
-                    document.addEventListener('touchstart', enableMusicOnInteraction, { once: true });
-                });
-            }
+                // Слушаем первое взаимодействие пользователя
+                document.addEventListener('click', enableMusicOnInteraction, { once: true });
+                document.addEventListener('keydown', enableMusicOnInteraction, { once: true });
+                document.addEventListener('touchstart', enableMusicOnInteraction, { once: true });
+            });
         });
-
-        function toggleMusic() {
-            if (!music || !musicBtn) {
-                music = document.getElementById('backgroundMusic');
-                musicBtn = document.getElementById('musicToggle');
-            }
-            
-            if (musicPlaying) {
-                music.pause();
-                musicPlaying = false;
-            } else {
-                music.volume = 0.3;
-                music.play().then(() => {
-                    musicPlaying = true;
-                }).catch(e => {
-                    console.error('Ошибка воспроизведения:', e);
-                    musicPlaying = false;
-                });
-            }
-            updateMusicButton();
-            // Сохраняем состояние в localStorage
-            localStorage.setItem('musicPlaying', musicPlaying);
-        }
     </script>
     {% block extra_js %}{% endblock %}
 </body>
