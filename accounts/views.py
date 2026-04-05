@@ -21,7 +21,7 @@ def register(request):
 def profile(request):
     if request.method == 'POST':
         # Обработка обновления профиля
-        if 'email' in request.POST or 'bio' in request.POST or 'avatar' in request.FILES:
+        if 'email' in request.POST or 'avatar' in request.FILES:
             form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
             if form.is_valid():
                 form.save()

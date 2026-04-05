@@ -20,12 +20,7 @@ class CustomUserCreationForm(UserCreationForm):
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = CustomUser
-        fields = ('avatar', 'bio', 'email')
-        widgets = {
-            'bio': forms.Textarea(attrs={'rows': 3}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'avatar': forms.FileInput(attrs={'class': 'form-control'}),
-        }
+        fields = ('avatar', 'email')
 
 class CustomPasswordChangeForm(PasswordChangeForm):
     old_password = forms.CharField(
